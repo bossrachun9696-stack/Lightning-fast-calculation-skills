@@ -91,10 +91,73 @@ function updateScore(){document.getElementById("scoreBox").innerText="⭐ "+(sco
 function check(){clearInterval(timer); if(parseInt(ans.value)===answer){score+=(level==1?1:level==2?3:5); totalTimeBonus+=Math.floor(time/10); updateScore(); nextQ();}else wrong();}
 function wrong(){clap(); document.getElementById("app").innerHTML=`<h2>❌ ผิดจ้า</h2><h1>🎉 คำตอบที่ถูกคือ ${answer}</h1><button onclick="nextQ()">ข้อต่อไป</button>`;}
 function summary(){document.getElementById("scoreBox")?.remove(); score+=totalTimeBonus; let s=load("scores"); s[player]=(s[player]||0)+score; save("scores",s); document.getElementById("app").innerHTML=`<h2>🎯 เล่นครบ ${totalQ} ข้อ</h2><h1>คะแนนรวม ${score}</h1><p>⏱️ โบนัสเวลา +${totalTimeBonus}</p><button onclick="home()">กลับหน้าแรก</button>`;}
-function ranking(){let s=load("scores"); let h="<h2>🏆 ตารางคะแนน</h2><div class='rank'>"; Object.entries(s).sort((a,b)=>b[1]-a[1]).forEach((p,i)=>h+=`${i+1}. ${p[0]} ⭐ ${p[1]}<br>`); h+="</div><hr><h3>🎁 ร้านแลกของ</h3><div class='shop'>"; rewards.forEach(r=>h+=`⭐ ${r} คะแนน <button onclick="redeemSelect(${r})">🎁 แลก</button><br>`); h+=`</div><br><button onclick="resetScore()">♻ รีเซ็ตคะแนน</button><button class="back" onclick="home()">⬅ กลับ</button>`; app.innerHTML=h;}
+function ranking() {
+    let s = load("scores");
+    let history = load("redeemHistory");
+    if (!Array.isArray(history)) history = [];
+
+    let h = "<h2>🏆 ตารางคะแนน</h2><div class='rank'>";
+    Object.entries(s).sort((a, b) => b[1] - a[1]).forEach((p, i) => h += `${i + 1}. ${p[0]} ⭐ ${p[1]}<br>`);
+    
+    h += "</div><hr><h3>🎁 ร้านแลกของ</h3><div class='shop'>";
+    rewards.forEach(r => h += `⭐ ${r} คะแนน <button onclick="redeemSelect(${r})">🎁 แลก</button><br>`);
+    
+    h += "</div><hr><h3>📜 ประวัติการแลก</h3><div style='text-align:left; font-size:14px; padding:10px; max-height:200px; overflow-y:auto;'>";
+    
+    if(history.length === 0) {
+        h += "<p style='text-align:center'>ยังไม่มีการแลกของ</p>";
+    } else {
+        // แสดงจากใหม่ไปเก่า
+        history.reverse().forEach(item => {
+            h += `• <b>${item.user}</b> ใช้ ${item.points} แต้ม <br> <small style='color:gray'>(${item.date})</small><br>`;
+        });
+    }
+
+    h += `</div><br><button onclick="resetScore()">♻ รีเซ็ตคะแนน</button><button class="back" onclick="home()">⬅ กลับ</button>`;
+    document.getElementById("app").innerHTML = h;
+}
 function redeemSelect(cost){let s=load("scores"); let names=Object.keys(s); if(names.length==0){alert("ยังไม่มีคะแนน");return;} let list=names.map((n,i)=>`${i+1}. ${n} (${s[n]} คะแนน)`).join("\n"); let c=prompt("เลือกคนที่จะแลก (พิมพ์เลข)\n\n"+list); let idx=parseInt(c)-1; if(!names[idx])return; redeemFor(names[idx],cost);}
-function redeemFor(name,cost){let s=load("scores"); if(s[name]<cost){alert(name+" คะแนนไม่พอ");return;} if(confirm(`ยืนยันแลกของ\n\n${name}\nใช้ ${cost} คะแนน`)){s[name]-=cost; save("scores",s); alert("🎉 แลกสำเร็จ"); ranking();}}
-function resetScore(){let p=prompt("ใส่รหัสรีเซ็ตคะแนน"); if(p==="0932815229"){localStorage.removeItem("scores");alert("รีเซ็ตแล้ว");home();} else alert("รหัสไม่ถูกต้อง");}
+function redeemFor(name, cost) {
+    let s = load("scores");
+    if (s[name] < cost) {
+        alert(name + " คะแนนไม่พอ");
+        return;
+    }
+    
+    if (confirm(`ยืนยันแลกของ\n\n${name}\nใช้ ${cost} คะแนน`)) {
+        // 1. หักคะแนน
+        s[name] -= cost;
+        save("scores", s);
+
+        // 2. บันทึกประวัติ
+        let history = load("redeemHistory"); 
+        if (!Array.isArray(history)) history = []; // ตรวจสอบว่าเป็น Array หรือไม่
+        
+        let now = new Date();
+        let dateStr = now.toLocaleDateString('th-TH') + " " + now.toLocaleTimeString('th-TH');
+        
+        history.push({
+            user: name,
+            points: cost,
+            date: dateStr
+        });
+        save("redeemHistory", history);
+
+        alert("🎉 แลกสำเร็จ");
+        ranking();
+    }
+}
+function resetScore(){
+    let p = prompt("ใส่รหัสรีเซ็ตคะแนน");
+    if(p === "0932815229"){
+        localStorage.removeItem("scores");
+        localStorage.removeItem("redeemHistory"); // ล้างประวัติด้วย
+        alert("รีเซ็ตข้อมูลทั้งหมดแล้ว");
+        home();
+    } else {
+        alert("รหัสไม่ถูกต้อง");
+    }
+}
 
 // --- ลงทะเบียน service worker ---
 if ("serviceWorker" in navigator) {navigator.serviceWorker.register("service-worker.js");}
