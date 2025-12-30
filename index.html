@@ -90,7 +90,18 @@ function add(n){ans.value+=n} function clr(){ans.value=ans.value.slice(0,-1)}
 function updateScore(){document.getElementById("scoreBox").innerText="⭐ "+(score+totalTimeBonus);}
 function check(){clearInterval(timer); if(parseInt(ans.value)===answer){score+=(level==1?1:level==2?3:5); totalTimeBonus+=Math.floor(time/10); updateScore(); nextQ();}else wrong();}
 function wrong(){clap(); document.getElementById("app").innerHTML=`<h2>❌ ผิดจ้า</h2><h1>🎉 คำตอบที่ถูกคือ ${answer}</h1><button onclick="nextQ()">ข้อต่อไป</button>`;}
-function summary(){document.getElementById("scoreBox")?.remove(); score+=totalTimeBonus; let s=load("scores"); s[player]=(s[player]||0)+score; save("scores",s); document.getElementById("app").innerHTML=`<h2>🎯 เล่นครบ ${totalQ} ข้อ</h2><h1>คะแนนรวม ${score}</h1><p>⏱️ โบนัสเวลา +${totalTimeBonus}</p><button onclick="home()">กลับหน้าแรก</button>`;}
+function summary(){
+  document.getElementById("scoreBox")?.remove(); 
+  score+=totalTimeBonus; 
+  let s=load("scores"); 
+  s[player]=(s[player]||0)+score; 
+  save("scores",s); 
+
+  // เพิ่มบรรทัดนี้: เพื่อส่งคะแนนล่าสุดไปให้พ่อดูในมือถือทันที
+  if(typeof sendScore === "function") sendScore(player, s[player]); 
+
+  document.getElementById("app").innerHTML=`<h2>🎯 เล่นครบ ${totalQ} ข้อ</h2>...`;
+}
 function ranking() {
     let s = load("scores");
     let history = load("redeemHistory");
@@ -119,30 +130,16 @@ function ranking() {
 function redeemSelect(cost){let s=load("scores"); let names=Object.keys(s); if(names.length==0){alert("ยังไม่มีคะแนน");return;} let list=names.map((n,i)=>`${i+1}. ${n} (${s[n]} คะแนน)`).join("\n"); let c=prompt("เลือกคนที่จะแลก (พิมพ์เลข)\n\n"+list); let idx=parseInt(c)-1; if(!names[idx])return; redeemFor(names[idx],cost);}
 function redeemFor(name, cost) {
     let s = load("scores");
-    if (s[name] < cost) {
-        alert(name + " คะแนนไม่พอ");
-        return;
-    }
+    if (s[name] < cost) { alert(name + " คะแนนไม่พอ"); return; }
     
     if (confirm(`ยืนยันแลกของ\n\n${name}\nใช้ ${cost} คะแนน`)) {
-        // 1. หักคะแนน
         s[name] -= cost;
         save("scores", s);
 
-        // 2. บันทึกประวัติ
-        let history = load("redeemHistory"); 
-        if (!Array.isArray(history)) history = []; // ตรวจสอบว่าเป็น Array หรือไม่
-        
-        let now = new Date();
-        let dateStr = now.toLocaleDateString('th-TH') + " " + now.toLocaleTimeString('th-TH');
-        
-        history.push({
-            user: name,
-            points: cost,
-            date: dateStr
-        });
-        save("redeemHistory", history);
+        // เพิ่มบรรทัดนี้: เพื่อบอกพ่อในมือถือว่าคะแนนถูกหักไปแล้วจากการแลกของ
+        if(typeof sendScore === "function") sendScore(name, s[name]); 
 
+        // ... (โค้ดบันทึกประวัติเดิมของคุณพ่อ) ...
         alert("🎉 แลกสำเร็จ");
         ranking();
     }
@@ -162,5 +159,53 @@ function resetScore(){
 // --- ลงทะเบียน service worker ---
 if ("serviceWorker" in navigator) {navigator.serviceWorker.register("service-worker.js");}
 </script>
+<script type="module">
+  // 1. นำเข้าเครื่องมือจาก Google
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+  // 2. *** วางรหัสที่คุณพ่อก๊อปมาจากรูปที่ 24 ทับตรงนี้ทั้งหมด ***
+  const firebaseConfig = {
+    apiKey: "AIzaSyD5Nhoo-gr8PopUEJK7YWRny-AY2ezKgAY",
+    authDomain: "mathgamefamily.firebaseapp.com",
+    databaseURL: "https://mathgamefamily-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "mathgamefamily",
+    storageBucket: "mathgamefamily.firebasestorage.app",
+    messagingSenderId: "445996606336",
+    appId: "1:445996606336:web:94651592279f012c779765",
+    measurementId: "G-G0K1YVW0XX"
+  };
+
+  // 3. เริ่มการทำงาน
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+
+  // ฟังก์ชันให้ลูกส่งคะแนน (ใส่ชื่อลูก และ คะแนน)
+  window.sendScore = function(name, score) {
+    set(ref(db, 'scores/' + name), {
+      name: name,
+      score: score,
+      time: new Date().toLocaleString()
+    });
+  };
+
+  // ส่วนแสดงผลที่จะเด้งบนหน้าจอมือถือคุณพ่อทันที
+  const monitor = document.createElement('div');
+  monitor.style = "position:fixed; top:10px; right:10px; background:white; border:2px solid #ff9800; padding:10px; border-radius:10px; z-index:9999; font-family:sans-serif; box-shadow:0 4px 8px rgba(0,0,0,0.2);";
+  document.body.appendChild(monitor);
+
+  onValue(ref(db, 'scores/'), (snapshot) => {
+    const data = snapshot.val();
+    monitor.innerHTML = '<b>📢 ติดตามคะแนนลูก:</b><br>';
+    if (data) {
+      Object.values(data).forEach(item => {
+        monitor.innerHTML += `✅ ${item.name}: ${item.score} แต้ม<br>`;
+      });
+    } else {
+      monitor.innerHTML += 'ยังไม่มีคะแนนส่งมา';
+    }
+  });
+</script>
 </body>
 </html>
+
