@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>เกมคิดเลขครอบครัว</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2196f3">
+
+<style>
+body{font-family:sans-serif;background:#eef5ff;margin:0;text-align:center}
+.box{background:#fff;margin:16px;padding:20px;border-radius:24px;box-shadow:0 6px 18px rgba(0,0,0,.2)}
+button{font-size:20px;padding:14px 22px;margin:6px;border:none;border-radius:20px;background:#2196f3;color:#fff}
+button.back{background:#ff9800;width:90%}
+button.num{font-size:32px;width:80px;height:80px;border-radius:50%}
+input{font-size:40px;width:240px;padding:14px;border-radius:18px;border:4px solid #2196f3;text-align:center}
+.timer{font-size:26px;color:red}
+.char{font-size:38px;cursor:pointer;margin:6px}
+.sel{border:4px solid orange;border-radius:14px}
+.scoreBox{position:fixed;top:12px;right:16px;background:#ff9800;color:#fff;font-size:28px;padding:10px 18px;border-radius:18px;box-shadow:0 4px 10px rgba(0,0,0,.3);z-index:999;}
+</style>
+</head>
+<body>
+<div class="box" id="app">กำลังโหลด…</div>
+
+<script>
+// --- โค้ดเกมของคุณ (เหมือนที่ส่งให้ก่อนหน้านี้) ---
+let player="", avatar="🧒", level=1;
+let answer=0, score=0, qCount=0;
+let time=120, timer=null, totalTimeBonus=0;
+const totalQ=7;
+const rewards=[100,150,200,250,300,350,400,450,500];
+
+function load(k){return JSON.parse(localStorage.getItem(k)||"{}")}
+function save(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function clap(){ new Audio("https://actions.google.com/sounds/v1/human_voices/applause.ogg").play(); }
+window.onload=home;
+
+function home(){
+ document.getElementById("scoreBox")?.remove();
+ document.getElementById("app").innerHTML=`
+ <h2>👨‍👩‍👧 เกมคิดเลข</h2>
+ <input id="name" placeholder="พิมพ์ชื่อ"><br><br>
+ 🎓 เลือกระดับ<br>
+ <button onclick="pickLevel(1,this)">ป.1</button>
+ <button onclick="pickLevel(2,this)">ป.2</button>
+ <button onclick="pickLevel(3,this)">ป.3</button><br><br>
+ เลือกตัวละคร<br>
+ <span class="char" onclick="pickChar('🧒',this)">🧒</span>
+ <span class="char" onclick="pickChar('👧',this)">👧</span>
+ <span class="char" onclick="pickChar('👦',this)">👦</span><br><br>
+ <button onclick="start()">▶ เริ่มเล่น</button>
+ <button onclick="ranking()">🏆 ตารางคะแนน</button>
+ `;
+}
+
+function pickLevel(l,e){ level=l; document.querySelectorAll("button").forEach(b=>b.classList.remove("sel")); e.classList.add("sel"); }
+function pickChar(c,e){ avatar=c; document.querySelectorAll(".char").forEach(x=>x.classList.remove("sel")); e.classList.add("sel"); }
+
+function start(){ player=document.getElementById("name").value||"เด็กเก่ง"; score=0;qCount=0;totalTimeBonus=0; nextQ(); }
+
+function nextQ(){
+ if(qCount>=totalQ){summary();return;}
+ qCount++; clearInterval(timer);
+ let a,b,op;
+ let ops=level==1?["+"]:level==2?["+","-","×"]:["+","-","×","÷"];
+ op=ops[Math.floor(Math.random()*ops.length)];
+ if(level==1){a=r(1,20);b=r(1,20)}
+ if(level==2){a=r(1,100);b=r(1,100);if(op=="×"){a=r(2,9);b=r(1,9)}}
+ if(level==3){if(op=="÷"){b=r(2,10);answer=r(1,10);a=b*answer}else{a=r(1,100);b=r(1,100)}}
+ if(op=="+")answer=a+b; if(op=="-"){if(b>a)[a,b]=[b,a];answer=a-b} if(op=="×")answer=a*b
+ time=120;
+ document.body.insertAdjacentHTML("beforeend", `<div id="scoreBox" class="scoreBox">⭐ ${score+totalTimeBonus}</div>`);
+ document.getElementById("app").innerHTML=`
+ <div class="timer">⏳ ${time}</div>
+ <h1>${avatar}</h1>
+ <h2>ข้อ ${qCount}/${totalQ} (ป.${level})</h2>
+ <h2>${a} ${op} ${b} = ?</h2>
+ <input id="ans" readonly><br><br>
+ ${[1,2,3,4,5,6,7,8,9,0].map(n=>`<button class="num" onclick="add(${n})">${n}</button>`).join("")}
+ <button class="num" onclick="clr()">⌫</button><br><br>
+ <button onclick="check()">ตอบ</button>
+ `;
+ timer=setInterval(()=>{ time--; document.querySelector(".timer").innerText="⏳ "+time; if(time<=0) wrong(); },1000);
+}
+function r(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function add(n){ans.value+=n} function clr(){ans.value=ans.value.slice(0,-1)}
+function updateScore(){document.getElementById("scoreBox").innerText="⭐ "+(score+totalTimeBonus);}
+function check(){clearInterval(timer); if(parseInt(ans.value)===answer){score+=(level==1?1:level==2?3:5); totalTimeBonus+=Math.floor(time/10); updateScore(); nextQ();}else wrong();}
+function wrong(){clap(); document.getElementById("app").innerHTML=`<h2>❌ ผิดจ้า</h2><h1>🎉 คำตอบที่ถูกคือ ${answer}</h1><button onclick="nextQ()">ข้อต่อไป</button>`;}
+function summary(){document.getElementById("scoreBox")?.remove(); score+=totalTimeBonus; let s=load("scores"); s[player]=(s[player]||0)+score; save("scores",s); document.getElementById("app").innerHTML=`<h2>🎯 เล่นครบ ${totalQ} ข้อ</h2><h1>คะแนนรวม ${score}</h1><p>⏱️ โบนัสเวลา +${totalTimeBonus}</p><button onclick="home()">กลับหน้าแรก</button>`;}
+function ranking(){let s=load("scores"); let h="<h2>🏆 ตารางคะแนน</h2><div class='rank'>"; Object.entries(s).sort((a,b)=>b[1]-a[1]).forEach((p,i)=>h+=`${i+1}. ${p[0]} ⭐ ${p[1]}<br>`); h+="</div><hr><h3>🎁 ร้านแลกของ</h3><div class='shop'>"; rewards.forEach(r=>h+=`⭐ ${r} คะแนน <button onclick="redeemSelect(${r})">🎁 แลก</button><br>`); h+=`</div><br><button onclick="resetScore()">♻ รีเซ็ตคะแนน</button><button class="back" onclick="home()">⬅ กลับ</button>`; app.innerHTML=h;}
+function redeemSelect(cost){let s=load("scores"); let names=Object.keys(s); if(names.length==0){alert("ยังไม่มีคะแนน");return;} let list=names.map((n,i)=>`${i+1}. ${n} (${s[n]} คะแนน)`).join("\n"); let c=prompt("เลือกคนที่จะแลก (พิมพ์เลข)\n\n"+list); let idx=parseInt(c)-1; if(!names[idx])return; redeemFor(names[idx],cost);}
+function redeemFor(name,cost){let s=load("scores"); if(s[name]<cost){alert(name+" คะแนนไม่พอ");return;} if(confirm(`ยืนยันแลกของ\n\n${name}\nใช้ ${cost} คะแนน`)){s[name]-=cost; save("scores",s); alert("🎉 แลกสำเร็จ"); ranking();}}
+function resetScore(){let p=prompt("ใส่รหัสรีเซ็ตคะแนน"); if(p==="0932815229"){localStorage.removeItem("scores");alert("รีเซ็ตแล้ว");home();} else alert("รหัสไม่ถูกต้อง");}
+
+// --- ลงทะเบียน service worker ---
+if ("serviceWorker" in navigator) {navigator.serviceWorker.register("service-worker.js");}
+</script>
+</body>
+</html>
