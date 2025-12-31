@@ -1,211 +1,218 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>เกมคิดเลขครอบครัว</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="UTF-8">
+    <title>เกมคิดเลขครอบครัว - ฉบับสมบูรณ์</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; background: #eef5ff; margin: 0; text-align: center; color: #333; }
+        .box { background: #fff; margin: 15px; padding: 20px; border-radius: 24px; box-shadow: 0 6px 18px rgba(0,0,0,0.1); }
+        
+        button { font-size: 18px; padding: 12px 20px; margin: 5px; border: none; border-radius: 18px; background: #2196f3; color: #fff; cursor: pointer; transition: 0.2s; }
+        button:active { transform: scale(0.95); }
+        button.back { background: #ff9800; width: 90%; }
+        
+        /* ปุ่มระดับชั้น - สีน้ำเงินเข้มชัดเจน */
+        .btn-lv { background: #d1d9e6; color: #444; border: 2px solid #b0b8c4; width: 80px; font-weight: bold; }
+        .btn-lv.sel { background: #0d47a1 !important; color: #fff !important; border: 3px solid #002171 !important; transform: scale(1.1); }
+        
+        /* ช่องพิมพ์ชื่อ - สั้นลงตามคำขอ */
+        input#name { font-size: 20px; width: 160px; padding: 10px; border-radius: 15px; border: 3px solid #2196f3; text-align: center; margin-bottom: 10px; }
+        
+        button.num { font-size: 30px; width: 70px; height: 70px; border-radius: 50%; background: #f0f0f0; color: #333; }
+        input#ans { font-size: 30px; width: 80%; padding: 10px; border-radius: 15px; border: 3px solid #2196f3; text-align: center; margin-bottom: 10px; }
+        
+        .timer { font-size: 26px; color: red; font-weight: bold; }
+        .char { font-size: 38px; cursor: pointer; margin: 5px; padding: 8px; display: inline-block; border: 4px solid transparent; }
+        .char.sel { border: 4px solid #ff9800; border-radius: 14px; background: #fff3e0; }
+        
+        .scoreBox { position: fixed; top: 10px; right: 10px; background: #ff9800; color: #fff; padding: 8px 15px; border-radius: 15px; z-index: 999; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        
+        /* การ์ดและประวัติ */
+        .req-card { text-align: left; background: #fff; padding: 15px; margin: 10px 0; border-radius: 15px; border-left: 6px solid #ff9800; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .history-card { text-align: left; background: #f1f8e9; padding: 12px; margin: 8px 0; border-radius: 12px; border-left: 6px solid #4caf50; font-size: 14px; position: relative; }
+        .badge { font-size: 11px; padding: 3px 8px; border-radius: 8px; color: white; float: right; font-weight: bold; }
+        .bg-done { background: #4caf50; }
+        .bg-cancel { background: #f44336; }
+        
+        .user-tag { background: #e3f2fd; padding: 8px 15px; border-radius: 12px; margin: 5px; cursor: pointer; display: inline-block; border: 2px solid #2196f3; font-weight: bold; }
+        .btn-reset { background: #d32f2f; font-size: 14px; margin-top: 30px; width: 90%; color: #fff; }
+    </style>
 
-<!-- PWA -->
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2196f3">
-
-<style>
-body{font-family:sans-serif;background:#eef5ff;margin:0;text-align:center}
-.box{background:#fff;margin:16px;padding:20px;border-radius:24px;box-shadow:0 6px 18px rgba(0,0,0,.2)}
-button{font-size:20px;padding:14px 22px;margin:6px;border:none;border-radius:20px;background:#2196f3;color:#fff}
-button.back{background:#ff9800;width:90%}
-button.num{font-size:32px;width:80px;height:80px;border-radius:50%}
-input{font-size:40px;width:240px;padding:14px;border-radius:18px;border:4px solid #2196f3;text-align:center}
-.timer{font-size:26px;color:red}
-.char{font-size:38px;cursor:pointer;margin:6px}
-.sel{border:4px solid orange;border-radius:14px}
-.scoreBox{position:fixed;top:12px;right:16px;background:#ff9800;color:#fff;font-size:28px;padding:10px 18px;border-radius:18px;box-shadow:0 4px 10px rgba(0,0,0,.3);z-index:999;}
-</style>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 </head>
 <body>
-<div class="box" id="app">กำลังโหลด…</div>
+
+<div id="app-content"><div class="box" id="app">กำลังเตรียมระบบ...</div></div>
 
 <script>
-// --- โค้ดเกมของคุณ (เหมือนที่ส่งให้ก่อนหน้านี้) ---
-let player="", avatar="🧒", level=1;
-let answer=0, score=0, qCount=0;
-let time=120, timer=null, totalTimeBonus=0;
-const totalQ=7;
-const rewards=[100,150,200,250,300,350,400,450,500];
-
-function load(k){return JSON.parse(localStorage.getItem(k)||"{}")}
-function save(k,v){localStorage.setItem(k,JSON.stringify(v))}
-function clap(){ new Audio("https://actions.google.com/sounds/v1/human_voices/applause.ogg").play(); }
-window.onload=home;
-
-function home(){
- document.getElementById("scoreBox")?.remove();
- document.getElementById("app").innerHTML=`
- <h2>👨‍👩‍👧 เกมคิดเลข</h2>
- <input id="name" placeholder="พิมพ์ชื่อ"><br><br>
- 🎓 เลือกระดับ<br>
- <button onclick="pickLevel(1,this)">ป.1</button>
- <button onclick="pickLevel(2,this)">ป.2</button>
- <button onclick="pickLevel(3,this)">ป.3</button><br><br>
- เลือกตัวละคร<br>
- <span class="char" onclick="pickChar('🧒',this)">🧒</span>
- <span class="char" onclick="pickChar('👧',this)">👧</span>
- <span class="char" onclick="pickChar('👦',this)">👦</span><br><br>
- <button onclick="start()">▶ เริ่มเล่น</button>
- <button onclick="ranking()">🏆 ตารางคะแนน</button>
- `;
-}
-
-function pickLevel(l,e){ level=l; document.querySelectorAll("button").forEach(b=>b.classList.remove("sel")); e.classList.add("sel"); }
-function pickChar(c,e){ avatar=c; document.querySelectorAll(".char").forEach(x=>x.classList.remove("sel")); e.classList.add("sel"); }
-
-function start(){ player=document.getElementById("name").value||"เด็กเก่ง"; score=0;qCount=0;totalTimeBonus=0; nextQ(); }
-
-function nextQ(){
- if(qCount>=totalQ){summary();return;}
- qCount++; clearInterval(timer);
- let a,b,op;
- let ops=level==1?["+"]:level==2?["+","-","×"]:["+","-","×","÷"];
- op=ops[Math.floor(Math.random()*ops.length)];
- if(level==1){a=r(1,20);b=r(1,20)}
- if(level==2){a=r(1,100);b=r(1,100);if(op=="×"){a=r(2,9);b=r(1,9)}}
- if(level==3){if(op=="÷"){b=r(2,10);answer=r(1,10);a=b*answer}else{a=r(1,100);b=r(1,100)}}
- if(op=="+")answer=a+b; if(op=="-"){if(b>a)[a,b]=[b,a];answer=a-b} if(op=="×")answer=a*b
- time=120;
- document.body.insertAdjacentHTML("beforeend", `<div id="scoreBox" class="scoreBox">⭐ ${score+totalTimeBonus}</div>`);
- document.getElementById("app").innerHTML=`
- <div class="timer">⏳ ${time}</div>
- <h1>${avatar}</h1>
- <h2>ข้อ ${qCount}/${totalQ} (ป.${level})</h2>
- <h2>${a} ${op} ${b} = ?</h2>
- <input id="ans" readonly><br><br>
- ${[1,2,3,4,5,6,7,8,9,0].map(n=>`<button class="num" onclick="add(${n})">${n}</button>`).join("")}
- <button class="num" onclick="clr()">⌫</button><br><br>
- <button onclick="check()">ตอบ</button>
- `;
- timer=setInterval(()=>{ time--; document.querySelector(".timer").innerText="⏳ "+time; if(time<=0) wrong(); },1000);
-}
-function r(a,b){return Math.floor(Math.random()*(b-a+1))+a}
-function add(n){ans.value+=n} function clr(){ans.value=ans.value.slice(0,-1)}
-function updateScore(){document.getElementById("scoreBox").innerText="⭐ "+(score+totalTimeBonus);}
-function check(){clearInterval(timer); if(parseInt(ans.value)===answer){score+=(level==1?1:level==2?3:5); totalTimeBonus+=Math.floor(time/10); updateScore(); nextQ();}else wrong();}
-function wrong(){clap(); document.getElementById("app").innerHTML=`<h2>❌ ผิดจ้า</h2><h1>🎉 คำตอบที่ถูกคือ ${answer}</h1><button onclick="nextQ()">ข้อต่อไป</button>`;}
-function summary(){
-  document.getElementById("scoreBox")?.remove(); 
-  score+=totalTimeBonus; 
-  let s=load("scores"); 
-  s[player]=(s[player]||0)+score; 
-  save("scores",s); 
-
-  // เพิ่มบรรทัดนี้: เพื่อส่งคะแนนล่าสุดไปให้พ่อดูในมือถือทันที
-  if(typeof sendScore === "function") sendScore(player, s[player]); 
-
-  document.getElementById("app").innerHTML=`<h2>🎯 เล่นครบ ${totalQ} ข้อ</h2>...`;
-}
-function ranking() {
-    let s = load("scores");
-    let history = load("redeemHistory");
-    if (!Array.isArray(history)) history = [];
-
-    let h = "<h2>🏆 ตารางคะแนน</h2><div class='rank'>";
-    Object.entries(s).sort((a, b) => b[1] - a[1]).forEach((p, i) => h += `${i + 1}. ${p[0]} ⭐ ${p[1]}<br>`);
-    
-    h += "</div><hr><h3>🎁 ร้านแลกของ</h3><div class='shop'>";
-    rewards.forEach(r => h += `⭐ ${r} คะแนน <button onclick="redeemSelect(${r})">🎁 แลก</button><br>`);
-    
-    h += "</div><hr><h3>📜 ประวัติการแลก</h3><div style='text-align:left; font-size:14px; padding:10px; max-height:200px; overflow-y:auto;'>";
-    
-    if(history.length === 0) {
-        h += "<p style='text-align:center'>ยังไม่มีการแลกของ</p>";
-    } else {
-        // แสดงจากใหม่ไปเก่า
-        history.reverse().forEach(item => {
-            h += `• <b>${item.user}</b> ใช้ ${item.points} แต้ม <br> <small style='color:gray'>(${item.date})</small><br>`;
-        });
-    }
-
-    h += `</div><br><button onclick="resetScore()">♻ รีเซ็ตคะแนน</button><button class="back" onclick="home()">⬅ กลับ</button>`;
-    document.getElementById("app").innerHTML = h;
-}
-function redeemSelect(cost){let s=load("scores"); let names=Object.keys(s); if(names.length==0){alert("ยังไม่มีคะแนน");return;} let list=names.map((n,i)=>`${i+1}. ${n} (${s[n]} คะแนน)`).join("\n"); let c=prompt("เลือกคนที่จะแลก (พิมพ์เลข)\n\n"+list); let idx=parseInt(c)-1; if(!names[idx])return; redeemFor(names[idx],cost);}
-function redeemFor(name, cost) {
-    let s = load("scores");
-    if (s[name] < cost) { alert(name + " คะแนนไม่พอ"); return; }
-    
-    if (confirm(`ยืนยันแลกของ\n\n${name}\nใช้ ${cost} คะแนน`)) {
-        s[name] -= cost;
-        save("scores", s);
-
-        // เพิ่มบรรทัดนี้: เพื่อบอกพ่อในมือถือว่าคะแนนถูกหักไปแล้วจากการแลกของ
-        if(typeof sendScore === "function") sendScore(name, s[name]); 
-
-        // ... (โค้ดบันทึกประวัติเดิมของคุณพ่อ) ...
-        alert("🎉 แลกสำเร็จ");
-        ranking();
-    }
-}
-function resetScore(){
-    let p = prompt("ใส่รหัสรีเซ็ตคะแนน");
-    if(p === "0932815229"){
-        localStorage.removeItem("scores");
-        localStorage.removeItem("redeemHistory"); // ล้างประวัติด้วย
-        alert("รีเซ็ตข้อมูลทั้งหมดแล้ว");
-        home();
-    } else {
-        alert("รหัสไม่ถูกต้อง");
-    }
-}
-
-// --- ลงทะเบียน service worker ---
-if ("serviceWorker" in navigator) {navigator.serviceWorker.register("service-worker.js");}
-</script>
-<script type="module">
-  // 1. นำเข้าเครื่องมือจาก Google
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-  // 2. *** วางรหัสที่คุณพ่อก๊อปมาจากรูปที่ 24 ทับตรงนี้ทั้งหมด ***
-  const firebaseConfig = {
+// ------------------ Firebase Setup ------------------
+const firebaseConfig = {
     apiKey: "AIzaSyD5Nhoo-gr8PopUEJK7YWRny-AY2ezKgAY",
     authDomain: "mathgamefamily.firebaseapp.com",
     databaseURL: "https://mathgamefamily-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "mathgamefamily",
-    storageBucket: "mathgamefamily.firebasestorage.app",
-    messagingSenderId: "445996606336",
-    appId: "1:445996606336:web:94651592279f012c779765",
-    measurementId: "G-G0K1YVW0XX"
-  };
+    projectId: "mathgamefamily"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-  // 3. เริ่มการทำงาน
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
+// ------------------ Game State ------------------
+let player="", avatar="🧒", level=1, answer=0, score=0, qCount=0, totalTimeBonus=0, time=120, timer=null;
+const totalQ=7;
+const rewards = [100, 200, 300, 500];
 
-  // ฟังก์ชันให้ลูกส่งคะแนน (ใส่ชื่อลูก และ คะแนน)
-  window.sendScore = function(name, score) {
-    set(ref(db, 'scores/' + name), {
-      name: name,
-      score: score,
-      time: new Date().toLocaleString()
-    });
-  };
+function loadLocal(k){ return JSON.parse(localStorage.getItem(k)||"{}") }
+function saveLocal(k,v){ localStorage.setItem(k,JSON.stringify(v)) }
 
-  // ส่วนแสดงผลที่จะเด้งบนหน้าจอมือถือคุณพ่อทันที
-  const monitor = document.createElement('div');
-  monitor.style = "position:fixed; top:10px; right:10px; background:white; border:2px solid #ff9800; padding:10px; border-radius:10px; z-index:9999; font-family:sans-serif; box-shadow:0 4px 8px rgba(0,0,0,0.2);";
-  document.body.appendChild(monitor);
+// ------------------ UI: Home Page ------------------
+function home(){
+    document.getElementById("scoreBox")?.remove();
+    document.getElementById("app").innerHTML = `
+        <h2 style="color:#1565c0">👨‍👩‍👧 คิดเลขครอบครัว</h2>
+        <input id="name" placeholder="ชื่อเล่น" maxlength="10"><br><br>
+        🎓 <b>เลือกชั้น:</b> 
+        <button id="lv1" class="btn-lv ${level==1?'sel':''}" onclick="pickLevel(1)">ป.1</button>
+        <button id="lv2" class="btn-lv ${level==2?'sel':''}" onclick="pickLevel(2)">ป.2</button>
+        <button id="lv3" class="btn-lv ${level==3?'sel':''}" onclick="pickLevel(3)">ป.3</button><br><br>
+        <span id="av1" class="char ${avatar=='🧒'?'sel':''}" onclick="pickChar('🧒','av1')">🧒</span>
+        <span id="av2" class="char ${avatar=='👧'?'sel':''}" onclick="pickChar('👧','av2')">👧</span>
+        <span id="av3" class="char ${avatar=='👦'?'sel':''}" onclick="pickChar('👦','av3')">👦</span><br><br>
+        <button style="width:90%; background:#4caf50;" onclick="start()">▶ เริ่มเล่น</button><br>
+        <button style="width:90%;" onclick="ranking()">🏆 ร้านค้า & แลกของ</button><br>
+        <button style="background:#673ab7;width:90%;" onclick="parentView()">👨‍👩‍👧 ผู้ปกครอง (อนุมัติ)</button>
+    `;
+}
 
-  onValue(ref(db, 'scores/'), (snapshot) => {
-    const data = snapshot.val();
-    monitor.innerHTML = '<b>📢 ติดตามคะแนนลูก:</b><br>';
-    if (data) {
-      Object.values(data).forEach(item => {
-        monitor.innerHTML += `✅ ${item.name}: ${item.score} แต้ม<br>`;
-      });
-    } else {
-      monitor.innerHTML += 'ยังไม่มีคะแนนส่งมา';
+function pickLevel(l){ level=l; document.querySelectorAll(".btn-lv").forEach(b=>b.classList.remove("sel")); document.getElementById("lv"+l).classList.add("sel"); }
+function pickChar(c, id){ avatar=c; document.querySelectorAll(".char").forEach(x=>x.classList.remove("sel")); document.getElementById(id).classList.add("sel"); }
+
+// ------------------ Game Logic ------------------
+function start(){ 
+    player = document.getElementById("name").value.trim() || "คนเก่ง"; 
+    score=0; qCount=0; totalTimeBonus=0; nextQ(); 
+}
+
+function updateScoreUI(){
+    let sb = document.getElementById("scoreBox") || (document.body.insertAdjacentHTML("beforeend", `<div id="scoreBox" class="scoreBox"></div>`), document.getElementById("scoreBox"));
+    sb.innerText = "⭐ " + (score+totalTimeBonus);
+}
+
+function nextQ(){
+    if(qCount >= totalQ){ summary(); return; }
+    qCount++; clearInterval(timer); updateScoreUI();
+    let a=r(1,20), b=r(1,10), op="+";
+    if(level==2){ a=r(10,80); b=r(10,50); op=Math.random()>0.5?"+":"-"; }
+    else if(level==3){ a=r(2,12); b=r(2,12); op="×"; }
+    if(op=="+") answer=a+b; if(op=="-"){if(b>a)[a,b]=[b,a]; answer=a-b;} if(op=="×") answer=a*b;
+    
+    time = 120;
+    document.getElementById("app").innerHTML = `
+        <div class="timer">⏳ <span id="t-val">${time}</span></div>
+        <h1 style="font-size:45px">${a} ${op} ${b} = ?</h1>
+        <input id="ans" type="number" readonly><br><br>
+        <div>
+            ${[1,2,3,4,5,6,7,8,9,0].map(n=>`<button class="num" onclick="document.getElementById('ans').value += ${n}">${n}</button>`).join("")}
+            <button class="num" style="background:#f44336; color:#fff" onclick="document.getElementById('ans').value=''">C</button>
+        </div><br>
+        <button style="width:90%; background:#4caf50;" onclick="check()">ตอบ</button>
+    `;
+    timer = setInterval(() => { time--; document.getElementById('t-val').innerText=time; if(time<=0)check(); }, 1000);
+}
+function r(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function check(){ clearInterval(timer); if(parseInt(document.getElementById("ans").value)===answer){ score+=(level*5); totalTimeBonus+=Math.floor(time/30); } nextQ(); }
+
+function summary(){
+    document.getElementById("scoreBox")?.remove();
+    let final = score + totalTimeBonus;
+    let s = loadLocal("scores"); s[player] = (s[player]||0) + final; saveLocal("scores", s);
+    db.ref('scores/'+player).set({name:player, score:s[player]});
+    document.getElementById("app").innerHTML = `<h2>🎯 จบเกม!</h2><h3>${player} ได้ +${final} แต้ม</h3><button onclick="home()">กลับหน้าแรก</button>`;
+}
+
+// ------------------ Redemption System (เลือกคนแลก) ------------------
+function ranking(){
+    let s = loadLocal("scores");
+    let h = "<h2>🏆 ร้านค้าขอแลกของ</h2><b>1. ใครเป็นคนแลก? (เลือกชื่อ):</b><br><br>";
+    let names = Object.keys(s);
+    if(names.length==0) h += "<p>ยังไม่มีประวัติคนเล่น</p>";
+    else {
+        names.forEach(n => h += `<div class="user-tag" onclick="showRewards('${n}', ${s[n]})">${n} (⭐ ${s[n]})</div>`);
     }
-  });
+    h += `<br><br><button class="back" onclick="home()">⬅ กลับ</button>`;
+    document.getElementById("app").innerHTML = h;
+}
+
+function showRewards(name, sScore){
+    let h = `<h3>ผู้ใช้แต้ม: ${name} (⭐ ${sScore})</h3><b>2. เลือกรางวัล:</b><br>`;
+    rewards.forEach(r => {
+        if(sScore >= r) h += `<button onclick="askItem('${name}', ${r})">ใช้ ${r} แต้มแลก</button><br>`;
+        else h += `<button style="background:#ccc" disabled>${r} แต้ม (ไม่พอ)</button><br>`;
+    });
+    h += `<br><button onclick="ranking()">⬅ เปลี่ยนชื่อคนแลก</button>`;
+    document.getElementById("app").innerHTML = h;
+}
+
+function askItem(name, cost){
+    let item = prompt("อยากแลกอะไรครับ (เช่น ขนม, ของเล่น, ติ๊กต็อก):");
+    if(!item) return;
+    db.ref('requests/').push({ user: name, item: item, points: cost, status: "pending", time: new Date().toLocaleString('th-TH') });
+    alert("ส่งคำขอแล้ว! รอผู้ปกครองอนุมัตินะครับ"); ranking();
+}
+
+// ------------------ Parent System & Reset ------------------
+function parentView(){
+    document.getElementById("app").innerHTML = `<h2>👨‍👩‍👧 อนุมัติ & ประวัติ</h2><div id="p-list">กำลังโหลดข้อมูล...</div><br>
+    <button class="btn-reset" onclick="resetScores()">🛑 รีเซ็ตคะแนนทุกคนเป็น 0</button><br>
+    <button class="back" onclick="home()">⬅ กลับหน้าแรก</button>`;
+    
+    db.ref('requests/').on('value', snap => {
+        let data = snap.val(), p="", h="<hr><h4>✅ ประวัติถาวร</h4>";
+        if(data){
+            Object.entries(data).reverse().forEach(([key, val]) => {
+                let info = `<div><b>ผู้แลก:</b> ${val.user} | <b>รางวัล:</b> ${val.item}<br><b>แต้ม:</b> ${val.points} | <b>เวลา:</b> ${val.time}</div>`;
+                if(val.status === "pending"){
+                    p += `<div class="req-card">${info}<br>
+                        <button style="background:#4caf50;font-size:14px" onclick="decide('${key}',true)">✅ อนุมัติ</button> 
+                        <button style="background:#f44336;font-size:14px" onclick="decide('${key}',false)">❌ ยกเลิก</button></div>`;
+                } else {
+                    let c = val.status==="approved"?"bg-done":"bg-cancel";
+                    h += `<div class="history-card"><span class="badge ${c}">${val.status==="approved"?"อนุมัติแล้ว":"ไม่ผ่าน"}</span>${info}</div>`;
+                }
+            });
+        }
+        document.getElementById("p-list").innerHTML = "<h4>⏳ รายการรออนุมัติ</h4>" + (p || "<p>ไม่มีรายการค้าง</p>") + h;
+    });
+}
+
+function decide(key, ok){
+    if(prompt("ใส่รหัสผ่านผู้ปกครอง (0932815229):") !== "0932815229") return alert("รหัสผิด!");
+    if(ok){
+        db.ref('requests/'+key).once('value', sn => {
+            let r = sn.val();
+            db.ref('scores/'+r.user).once('value', sSn => {
+                let cur = sSn.val().score;
+                if(cur >= r.points){
+                    db.ref('scores/'+r.user+'/score').set(cur - r.points);
+                    db.ref('requests/'+key+'/status').set("approved");
+                    alert("อนุมัติสำเร็จ! หักแต้มเรียบร้อย");
+                } else alert("แต้มไม่พอหัก!");
+            });
+        });
+    } else db.ref('requests/'+key+'/status').set("rejected");
+}
+
+function resetScores(){
+    if(prompt("⚠️ ยืนยันรีเซ็ตคะแนนทุกคนเป็น 0?\nกรุณาใส่รหัสผ่าน:") === "0932815229"){
+        db.ref('scores/').remove();
+        db.ref('requests/').remove(); // รีเซ็ตประวัติด้วยเพื่อให้เริ่มใหม่ทั้งหมด
+        localStorage.setItem("scores", "{}");
+        alert("รีเซ็ตระบบทั้งหมดเรียบร้อยแล้ว!");
+        home();
+    } else alert("รหัสไม่ถูกต้อง!");
+}
+
+window.onload = home;
 </script>
 </body>
 </html>
-
