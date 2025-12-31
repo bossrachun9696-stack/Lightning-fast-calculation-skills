@@ -132,7 +132,7 @@ function check(){
     let userAns = parseInt(document.getElementById("ans").value);
     if(userAns === answer){
         score += (level*10);
-        totalTimeBonus += Math.floor(time/10);
+        totalTimeBonus += Math.floor(time/20);
         nextQ();
     } else {
         document.getElementById("app").innerHTML = `
@@ -290,4 +290,5 @@ if ('serviceWorker' in navigator) {
 window.onload = home;
 </script>
 </body>
+
 </html>
