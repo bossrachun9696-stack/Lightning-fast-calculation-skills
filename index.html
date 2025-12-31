@@ -186,7 +186,7 @@ function parentView(){
 }
 
 function decide(key, ok){
-    if(prompt("ใส่รหัสผ่านผู้ปกครอง (0932815229):") !== "0932815229") return alert("รหัสผิด!");
+    if(prompt("ใส่รหัสผ่านผู้ปกครอง") !== "0932815229") return alert("รหัสผิด!");
     if(ok){
         db.ref('requests/'+key).once('value', sn => {
             let r = sn.val();
@@ -215,4 +215,5 @@ function resetScores(){
 window.onload = home;
 </script>
 </body>
+
 </html>
